@@ -1,17 +1,40 @@
 
+import { db } from '../db';
+import { submissionsTable } from '../db/schema';
 import { type UpdateSubmissionInput, type Submission } from '../schema';
+import { eq, sql } from 'drizzle-orm';
 
 export async function updateSubmission(input: UpdateSubmissionInput): Promise<Submission> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating an existing submission in the database.
-    // Should only update the fields that are provided in the input.
-    // Should update the updated_at timestamp automatically.
-    // Should throw an error if the submission is not found.
-    return Promise.resolve({
-        id: input.id,
-        title: input.title || 'Placeholder Title',
-        description: input.description || 'Placeholder Description',
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Submission);
+  try {
+    // Build the update object with only provided fields
+    const updateData: any = {};
+    
+    if (input.title !== undefined) {
+      updateData.title = input.title;
+    }
+    
+    if (input.description !== undefined) {
+      updateData.description = input.description;
+    }
+    
+    // Always update the updated_at timestamp
+    updateData.updated_at = sql`now()`;
+    
+    // Update the submission and return the result
+    const result = await db.update(submissionsTable)
+      .set(updateData)
+      .where(eq(submissionsTable.id, input.id))
+      .returning()
+      .execute();
+    
+    // Check if submission was found and updated
+    if (result.length === 0) {
+      throw new Error(`Submission with id ${input.id} not found`);
+    }
+    
+    return result[0];
+  } catch (error) {
+    console.error('Submission update failed:', error);
+    throw error;
+  }
 }
